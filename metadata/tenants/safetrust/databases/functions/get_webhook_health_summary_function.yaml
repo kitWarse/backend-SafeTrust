@@ -6,5 +6,5 @@ configuration:
   exposed_as: query
   session_argument: hasura_session
 comment: |
-  Restricted operational health summary. The return view is selectable only by
-  the admin role, which also restricts this function to admin in Hasura.
+  Compatibility-named polling health summary. Reports confirmation retry state
+  and the age of the latest completed reconciliation run.

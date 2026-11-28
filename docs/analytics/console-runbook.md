@@ -295,6 +295,18 @@ query AdminAnalyticsOverview {
 }
 ```
 
+> `webhook_records` is a legacy API field name. It counts canonical lifecycle
+> journal rows written by initialization, milestone approval, and polling
+> reconciliation. It does not measure external callback traffic.
+
+### Polling sync health
+
+`get_webhook_health_summary` is also retained as a compatibility name. Its
+`last_sync_at`/`sync_lag_seconds` values come from `reconciliation_runs`, while
+`pending_count`, `failed_count`, and `oldest_unprocessed_age_minutes` describe
+confirmation retries. A completed run is persisted before the sync endpoint
+returns success.
+
 ### B. SafeTrust Host Role (`host`)
 A tenant-authenticated host user querying their tenant (`safetrust`).
 

@@ -18,9 +18,9 @@ metric's SQL changes, update this file in the same migration PR.
 | Metric | Source | Unit | Time basis | Definition | Known limitations |
 | --- | --- | --- | --- | --- | --- |
 | `day` | generated series | date | UTC day | One row per day in `[p_start_date, p_end_date]`. | — |
-| `webhook_records` | `trustless_work_webhook_events` | rows | `created_at` | Every webhook row stored that day, including duplicate deliveries and redeliveries of the same event. | Measures delivery volume, not activity. Use it for webhook operations, not product usage. |
-| `lifecycle_events` | `trustless_work_webhook_events` | events | first `created_at` per key | Unique escrow lifecycle events, deduplicated on `(contract_id, event_type)`, which is the key the webhook handler deduplicates on. Each event counts once, on the UTC day its first copy was received. | An event first received before `p_start_date` isn't counted, even if it's redelivered inside the range. Rows without a `contract_id` can't be deduplicated, so each one counts separately. A legitimate repeat of the same event type on the same contract counts once. |
-| `processed_events` | `trustless_work_webhook_events` | rows | `processed_at` | Webhook rows whose processing succeeded that day (`processed = true`). | Point-in-time once written: a retry that succeeds later adds to the day it succeeded and doesn't rewrite the day the webhook arrived. Duplicate deliveries are stored with `processed = false`, so they aren't counted. |
+| `webhook_records` | lifecycle event journal (legacy table name: `trustless_work_webhook_events`) | rows | `created_at` | Every canonical lifecycle event recorded that day by initialization, milestone approval, or reconciliation. The field name is retained for API compatibility. | This is application activity, not callback traffic. Reconciliation identities include contract, transition, and observed ledger sequence. |
+| `lifecycle_events` | lifecycle event journal | events | first `created_at` per lifecycle key | Unique escrow lifecycle events. Funding, release, dispute, and resolution applied by polling are included. | Replaying the same ledger observation reuses `event_identity` and adds no row. |
+| `processed_events` | lifecycle event journal | rows | `processed_at` | Lifecycle transitions committed successfully that day (`processed = true`). | The event row and status update commit in the same database transaction. |
 | `last_active_users` | `users.last_seen` | users | `last_seen` | Users whose **most recent** activity falls on that day. | `last_seen` changes over time. A returning user moves to their newest day and drops out of earlier days, so past buckets shrink over time. This isn't a sign-up or new-user metric, because `users` has no `created_at` column. |
 | `escrows_created` | `trustless_work_escrows` | escrows | `created_at` | Escrows created that day. | Changes only if escrow rows are deleted. |
 | `cohort_active_escrows` | `trustless_work_escrows` | escrows | `created_at` (cohort) + current `status` | Of the escrows created that day, how many are **currently** `funded`, `active` or `milestone_approved`. | Not a point-in-time count of escrows that were active on that day. Past buckets change as escrows in the cohort complete. A historical count needs a status history table. |
@@ -57,8 +57,8 @@ The dashboard (`dApp-SafeTrust`, `apps/frontend/src/hooks/use-analytics-data.ts`
 | Field | Label |
 | --- | --- |
 | `lifecycle_events` | Escrow lifecycle events |
-| `webhook_records` | Webhook deliveries received |
-| `processed_events` | Webhook events processed |
+| `webhook_records` | Lifecycle events recorded |
+| `processed_events` | Lifecycle transitions applied |
 | `last_active_users` | Users last active |
 | `escrows_created` | Escrows created |
 | `cohort_active_value_usdc` | Nominal value still active (USDC) |

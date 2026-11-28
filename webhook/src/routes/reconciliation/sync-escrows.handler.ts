@@ -14,6 +14,7 @@ import {
   validateSorobanDrift,
   detectStaleEscrows,
   formatReconciliationSummary,
+  recordSuccessfulReconciliationRun,
   SyncSummary,
   DriftSummary,
   ReconciliationResponse,
@@ -71,6 +72,7 @@ export const syncEscrowsHandler = async (
       undefined,
       sync.transitions
     )
+    await recordSuccessfulReconciliationRun(summary, TENANT_ID)
 
     const level = summary.errors > 0 ? 'warn' : 'info'
     logger[level]('reconciliation.sync.completed', {

@@ -1,6 +1,8 @@
 table:
   name: webhook_health_summary
   schema: safetrust
+# Legacy GraphQL type name retained to avoid a breaking dashboard release. Its
+# fields now describe polling reconciliation and confirmation-retry health.
 select_permissions:
   - role: admin
     permission:

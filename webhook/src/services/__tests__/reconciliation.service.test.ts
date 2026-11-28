@@ -19,6 +19,8 @@ import {
   setSorobanReconcilerAddon,
   SyncSummary,
   DriftSummary,
+  applyReconciliationTransitions,
+  detectReconciliationTransitions,
 } from '../reconciliation.service'
 
 jest.mock('../db', () => ({
@@ -42,6 +44,52 @@ describe('reconciliation.service', () => {
     process.env.SOROBAN_VALIDATION_ENABLED = 'false'
     process.env.RUST_CHUNK_PROCESSING_ENABLED = 'false'
 
+  })
+
+  describe('polling lifecycle journal', () => {
+    it('includes the observed ledger sequence in the atomic event identity payload', async () => {
+      const executeTransition = jest.fn().mockResolvedValue({
+        isDuplicate: false,
+        eventId: 'event-1',
+        escrowId: 'escrow-1',
+      })
+      const transitions = detectReconciliationTransitions(
+        [{ contract_id: 'contract-1', status: 'created' }],
+        [{ contractId: 'contract-1', status: 'funded', ledgerSeq: '123' }]
+      )
+
+      const result = await applyReconciliationTransitions(transitions, {
+        executeTransition,
+        notify: jest.fn().mockResolvedValue(undefined),
+      })
+
+      expect(result.applied).toBe(1)
+      expect(executeTransition).toHaveBeenCalledWith(
+        expect.objectContaining({
+          observedLedgerSeq: '123',
+          rawPayload: expect.objectContaining({
+            source: 'reconciliation',
+            observedLedgerSeq: '123',
+          }),
+        })
+      )
+    })
+
+    it('counts a replayed transition as a duplicate instead of a second apply', async () => {
+      const transitions = detectReconciliationTransitions(
+        [{ contract_id: 'contract-1', status: 'created' }],
+        [{ contractId: 'contract-1', status: 'funded', ledgerSeq: '123' }]
+      )
+      const result = await applyReconciliationTransitions(transitions, {
+        executeTransition: jest.fn().mockResolvedValue({
+          isDuplicate: true,
+          eventId: 'event-1',
+        }),
+        notify: jest.fn(),
+      })
+
+      expect(result).toEqual(expect.objectContaining({ applied: 0, duplicates: 1 }))
+    })
   })
 
   // ─── 1. fetchEscrowContractIds ─────────────────────────────────────────────

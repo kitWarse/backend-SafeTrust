@@ -1,16 +1,25 @@
 'use strict'
 
 import { Request, Response } from 'express'
-import * as reconciliationService from '../../../services/reconciliation.service'
+import * as reconciliationService from '../../../services/reconciliation.service'
+
 
 process.env.SOROBAN_VALIDATION_ENABLED = 'false'
 
-jest.mock('../../../services/reconciliation.service', () => ({
-  ...jest.requireActual('../../../services/reconciliation.service'),
-  fetchEscrowContractIds: jest.fn(),
-  syncEscrowsWithIndexer: jest.fn(),
-  validateSorobanDrift: jest.fn(),
-  detectStaleEscrows: jest.fn(),
+jest.mock('../../../services/reconciliation.service', () => ({
+
+  ...jest.requireActual('../../../services/reconciliation.service'),
+
+  fetchEscrowContractIds: jest.fn(),
+
+  syncEscrowsWithIndexer: jest.fn(),
+
+  validateSorobanDrift: jest.fn(),
+
+  detectStaleEscrows: jest.fn(),
+
+  recordSuccessfulReconciliationRun: jest.fn(),
+
 }))
 
 describe('syncEscrowsHandler', () => {
@@ -19,23 +28,41 @@ describe('syncEscrowsHandler', () => {
   beforeEach(async () => {
     jest.clearAllMocks()
     process.env.SOROBAN_VALIDATION_ENABLED = 'false'
-    ;(reconciliationService.fetchEscrowContractIds as jest.Mock).mockResolvedValue([])
-    ;(reconciliationService.syncEscrowsWithIndexer as jest.Mock).mockResolvedValue({
-      totalEscrows: 0,
-      chunks: 0,
-      updated: 0,
-      unchanged: 0,
-      skipped: 0,
-      errors: [],
-    })
-    ;(reconciliationService.validateSorobanDrift as jest.Mock).mockResolvedValue({
-      enabled: false,
-      drift: 0,
-      corrected: 0,
-      unresolved: 0,
-      errors: [],
-    })
-    ;(reconciliationService.detectStaleEscrows as jest.Mock).mockResolvedValue([])
+    ;(reconciliationService.fetchEscrowContractIds as jest.Mock).mockResolvedValue([])
+
+    ;(reconciliationService.syncEscrowsWithIndexer as jest.Mock).mockResolvedValue({
+
+      totalEscrows: 0,
+
+      chunks: 0,
+
+      updated: 0,
+
+      unchanged: 0,
+
+      skipped: 0,
+
+      errors: [],
+
+    })
+
+    ;(reconciliationService.validateSorobanDrift as jest.Mock).mockResolvedValue({
+
+      enabled: false,
+
+      drift: 0,
+
+      corrected: 0,
+
+      unresolved: 0,
+
+      errors: [],
+
+    })
+
+    ;(reconciliationService.detectStaleEscrows as jest.Mock).mockResolvedValue([])
+    ;(reconciliationService.recordSuccessfulReconciliationRun as jest.Mock).mockResolvedValue(undefined)
+
     const module = await import('../sync-escrows.handler')
     syncEscrowsHandler = module.syncEscrowsHandler
   })
@@ -64,11 +91,16 @@ describe('syncEscrowsHandler', () => {
   })
 
   it('processes chunks successfully when SOROBAN_VALIDATION_ENABLED is false', async () => {
-    ;(reconciliationService.fetchEscrowContractIds as jest.Mock).mockResolvedValueOnce([
-      'mock_1',
-    ])
-    ;(reconciliationService.syncEscrowsWithIndexer as jest.Mock).mockResolvedValueOnce({
-      totalEscrows: 1,
+    ;(reconciliationService.fetchEscrowContractIds as jest.Mock).mockResolvedValueOnce([
+
+      'mock_1',
+
+    ])
+
+    ;(reconciliationService.syncEscrowsWithIndexer as jest.Mock).mockResolvedValueOnce({
+
+      totalEscrows: 1,
+
       chunks: 1,
       updated: 1,
       unchanged: 0,
@@ -101,6 +133,10 @@ describe('syncEscrowsHandler', () => {
       'testnet',
       { skipStatusCorrectionFor: ['mock_1'] }
     )
+    expect(reconciliationService.recordSuccessfulReconciliationRun).toHaveBeenCalledWith(
+      expect.objectContaining({ totalEscrows: 1, updated: 1 }),
+      'safetrust'
+    )
 
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith(
@@ -118,9 +154,12 @@ describe('syncEscrowsHandler', () => {
   })
 
   it('handles fatal database error with 500 status', async () => {
-    ;(reconciliationService.fetchEscrowContractIds as jest.Mock).mockRejectedValueOnce(
-      new Error('DB connection failed')
-    )
+    ;(reconciliationService.fetchEscrowContractIds as jest.Mock).mockRejectedValueOnce(
+
+      new Error('DB connection failed')
+
+    )
+
 
     const req = {} as Request
     const res = {

@@ -5,6 +5,9 @@
 DELETE FROM safetrust.trustless_work_webhook_events
 WHERE contract_id LIKE 'test-ana-%';
 
+DELETE FROM safetrust.reconciliation_runs
+WHERE tenant_id LIKE 'test-ana-%';
+
 DELETE FROM safetrust.trustless_work_escrows
 WHERE contract_id LIKE 'test-ana-%';
 

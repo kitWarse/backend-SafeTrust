@@ -24,6 +24,7 @@ import {
   fetchEscrowTransitionStates,
   fetchSorobanEscrowRows,
   findStaleEscrows,
+  recordReconciliationRun,
   upsertEscrowBatch,
 } from '../repositories/reconciliation.repository'
 import { hasuraRequest } from './hasura'
@@ -225,6 +226,7 @@ export async function applyReconciliationTransitions(
           contractId: transition.contractId,
           status: transition.targetStatus,
           source: 'reconciliation',
+          observedLedgerSeq: transition.observedLedgerSeq,
         },
       })
 
@@ -824,6 +826,22 @@ export async function detectStaleEscrows(
  */
 export async function reconcileConfirmationRetries(): Promise<ProcessRetriesSummary> {
   return processPendingConfirmationRetries()
+}
+
+/** Record a successful polling cycle for the sync-health analytics endpoint. */
+export async function recordSuccessfulReconciliationRun(
+  summary: ReconciliationResponse,
+  tenantId = 'safetrust'
+): Promise<void> {
+  await recordReconciliationRun({
+    tenantId,
+    totalEscrows: summary.totalEscrows,
+    updated: summary.updated,
+    unchanged: summary.unchanged,
+    skipped: summary.skipped,
+    errors: summary.errors,
+    durationMs: summary.durationMs,
+  })
 }
 
 /**

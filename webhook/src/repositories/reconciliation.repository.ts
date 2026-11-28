@@ -233,6 +233,35 @@ export async function fetchEscrowTransitionStates(
   return result?.rows ?? []
 }
 
+export interface ReconciliationRunRecord {
+  tenantId: string
+  totalEscrows: number
+  updated: number
+  unchanged: number
+  skipped: number
+  errors: number
+  durationMs: number
+}
+
+/** Persist one completed polling run so health is based on reconciliation, not callbacks. */
+export async function recordReconciliationRun(run: ReconciliationRunRecord): Promise<void> {
+  await db.query(
+    `INSERT INTO safetrust.reconciliation_runs (
+       tenant_id, total_escrows, updated_count, unchanged_count,
+       skipped_count, error_count, duration_ms, completed_at
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+    [
+      run.tenantId,
+      run.totalEscrows,
+      run.updated,
+      run.unchanged,
+      run.skipped,
+      run.errors,
+      run.durationMs,
+    ]
+  )
+}
+
 export async function upsertEscrows(escrows: EscrowRecord[]): Promise<UpsertResult> {
   let updated = 0
   let unchanged = 0

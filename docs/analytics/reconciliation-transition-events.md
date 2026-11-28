@@ -9,8 +9,11 @@ Each transition record uses the idempotency identity
 status update must share one database transaction. Replaying the same ledger
 state therefore updates neither the status nor the analytics count.
 
-Sync health replaces delivery health: last successful reconciliation time,
-ledger lag, repeatedly skipped escrows, and pending confirmation retries.
+`1793400000000_analytics_after_polling` implements this contract. The physical
+event table and `webhook_records` response field keep their legacy names for
+compatibility, but both now describe the canonical lifecycle journal.
 
-Until the follow-up migration lands, consumers must not interpret webhook
-delivery rows as escrow lifecycle volume.
+Sync health is recorded once per completed polling cycle in
+`reconciliation_runs`. The compatibility-named health query reports the last
+successful reconciliation time and pending/dead-letter confirmation retries;
+it no longer derives health from callback traffic.
